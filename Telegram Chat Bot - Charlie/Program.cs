@@ -2,16 +2,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using Telegram.Bot;
 
 namespace Telegram_Chat_Bot___Charlie
 {
     class Program
     {
-        //creating a BotClient object using Bot API Key obtained from the Telegram BotFather
+        //Creating a BotClient object using Bot API Key obtained from the Telegram BotFather
         private static TelegramBotClient botClient = new TelegramBotClient("Insert your Telegram Bot API Key here.");
+        //List of all chat Ids that have already staretd a chat with the bot
+        private static List<Telegram.Bot.Types.ChatId> chatIdsList = new List<Telegram.Bot.Types.ChatId>();
+        //List of bot instances for each chat Id in the corresponding indices of the chat Ids list 
+        private static List<BotInstance> botInstancesList = new List<BotInstance>();
 
         static void Main(string[] args)
         {
@@ -28,11 +31,29 @@ namespace Telegram_Chat_Bot___Charlie
 
         }
 
+        //Callback function to handle the event OnMessage 
         private static void BotClient_OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
         {
+            //If chat ID already exists in the list of chat Ids
+            if (chatIdsList.Contains(e.Message.Chat.Id))
+            {
+                //Get the corresponding BotInstance object from the list of instances 
+                BotInstance botInstance = botInstancesList.ElementAt(chatIdsList.IndexOf(e.Message.Chat.Id));
+                //Talk with the bot on new thread
+                new Thread(botInstance.startRecieveMessages).Start();
+            }
+            else
+            {
+                //Add the new chat Id to the list
+                chatIdsList.Add(e.Message.Chat.Id);
+                //Create a new BotInstance object and add it to the list
+                BotInstance botInstance = new BotInstance(botClient, e);
+                botInstancesList.Add(botInstance);
+                //Talk to the bot using a new thread
+                new Thread(botInstance.startRecieveMessages).Start();
+            }
 
-            string incomingMessageText = e.Message.Text;
-            string responseToSendBack = "";
+
         }
 
 
@@ -44,7 +65,7 @@ namespace Telegram_Chat_Bot___Charlie
         TelegramBotClient botClient;
         Telegram.Bot.Args.MessageEventArgs eventVariable;
         Charlie botI;
-        string message;
+        
 
         public BotInstance(TelegramBotClient client, Telegram.Bot.Args.MessageEventArgs e)
         {
@@ -68,7 +89,7 @@ namespace Telegram_Chat_Bot___Charlie
             else if (input.StartsWith("/"))
                 input = input.Remove(0, 1);
 
-            
+
             try
             {
                 response = botI.talkToBot(eventVariable.Message.Text);
